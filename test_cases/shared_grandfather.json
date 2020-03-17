@@ -1,0 +1,6 @@
+[
+{"id": "B", "parent1": "A", "parent2": "G"},
+{"id": "C", "parent1": "A", "parent2": "E"},
+{"id": "G", "parent1": "F"},
+{"id": "E", "parent1": "F"}
+]

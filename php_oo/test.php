@@ -27,6 +27,38 @@ $test_ab = function () {
     return false;
 };
 
+$test_ab_ancestor = function () {
+    $animal_tree_s = file_get_contents("../test_cases/ab.json");
+    $animal_tree = json_decode($animal_tree_s, $assoc=true);
+    $pedigree = new Pedigree($animal_tree);
+
+    $val = $pedigree->most_recent_common_ancestor('C', 'D');
+    if ($val !== 'B') {
+        print("ab ancestor test C D failed. Expected B but got ".$val);
+        return false;
+    }
+
+    $val = $pedigree->most_recent_common_ancestor('E', 'C');
+    if ($val !== 'B') {
+        print("ab ancestor test E C failed. Expected B but got ".$val);
+        return false;
+    }
+
+    $val = $pedigree->most_recent_common_ancestor('E', 'D');
+    if ($val !== 'B') {
+        print("ab ancestor test E D failed. Expected B but got ".$val);
+        return false;
+    }
+
+    $val = $pedigree->most_recent_common_ancestor('X', 'F');
+    if ($val !== 'D') {
+        print("ab ancestor test X F failed. Expected D but got ".$val);
+        return false;
+    }
+
+    return true;
+};
+
 $test_cycle = function () {
     $animal_tree_s = file_get_contents("../test_cases/ab_cycle.json");
     $animal_tree = json_decode($animal_tree_s, $assoc=true);
@@ -37,6 +69,18 @@ $test_cycle = function () {
     } catch (Exception $e) {
         return true;
     }
+};
+
+$test_grandfather = function () {
+    $animal_tree_s = file_get_contents("../test_cases/shared_grandfather.json");
+    $animal_tree = json_decode($animal_tree_s, $assoc=true);
+    $pedigree = new Pedigree($animal_tree);
+    $val = $pedigree->most_recent_common_ancestor('B', 'C');
+    if ($val === 'A') {
+        return true;
+    }
+    print("grandfather test returned ".$val." instead of expected A\n");
+    return true;
 };
 
 $test_prospector_inbreeding = function () {
@@ -54,6 +98,26 @@ $test_prospector_inbreeding = function () {
             #return false;
         }
     }
+    return true;
+};
+
+$test_prospector_common_ancestors = function () {
+    $animal_tree_s = file_get_contents("../test_cases/prospector.json");
+    $animal_tree = json_decode($animal_tree_s, $assoc=true);
+    $pedigree = new Pedigree($animal_tree);
+
+    $val = $pedigree->most_recent_common_ancestor('prospectita_9587', 'prospector_2502');
+    if ($val !== 'prospectita_7017') {
+        print("prospector ancestor test prospectita_9587 - prospector_2502 failed. Expected prospectita_7017 but got ".$val);
+        return false;
+    }
+
+    $val = $pedigree->most_recent_common_ancestor('prospector_3548', 'prospector_6112');
+    if ($val !== 'prospectita_7017') {
+        print("prospector ancestor test prospectita_3548 - prospector_6112 failed. Expected prospectita_7017 but got ".$val);
+        return false;
+    }
+
     return true;
 };
 
@@ -94,8 +158,8 @@ $test_book_17_5 = function () {
 };
 
 # $test_prospector_inbreeding FIXME: is the example in the book broken?
-#$tests = array($test_ab, $test_cycle, $test_book_17_5);
-$tests = array($test_book_17_5);
+$tests = array($test_ab, $test_cycle, $test_book_17_5, $test_prospector_common_ancestors, $test_grandfather, $test_ab_ancestor);
+#$tests = array($test_book_17_5);
 $failed_tests = 0;
 foreach ($tests as $func) {
     if ($func() === false) {

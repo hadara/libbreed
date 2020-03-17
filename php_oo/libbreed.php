@@ -16,14 +16,8 @@ function print_numerator_table(&$numerator_table) {
     }
 }
 
-function _sorted_family_tree(&$relationships) {
+function _sorted_family_tree(&$relationships, &$relmap) {
     # we have to ensure that no animal comes in the relationship list before its parents
-
-    # build hashmap from animal_id to record to make sorting simpler
-    $relmap = array();
-    foreach ($relationships as $rel) {
-        $relmap[$rel['id']] = $rel;
-    }
 
     # helper "set" to keep track of which animals we have already sent to the output
     $animals_seen = array();
@@ -68,7 +62,14 @@ function _sorted_family_tree(&$relationships) {
 
 class Pedigree {
     function __construct(&$relationships) {
-        $relationships_sorted = _sorted_family_tree($relationships);
+        # build hashmap from animal_id to record to make sorting simpler
+        $relmap = array();
+        foreach ($relationships as $rel) {
+            $relmap[$rel['id']] = $rel;
+        }
+        $this->relmap = $relmap;
+
+        $relationships_sorted = _sorted_family_tree($relationships, $relmap);
         $this->numerator_table = $this->get_numerator_table($relationships_sorted);
     }
 
@@ -109,7 +110,63 @@ class Pedigree {
         }
         return $numerator_table;
     }
-    
+
+    function array_intersect_closest(&$array1, &$array2) {
+        // like std. array_intersect_key() but keeps records with lowest value
+        $retval = array();
+        foreach ($array1 as $k1 => $v1) {
+            if (!isset($array2[$k1])) {
+                continue;
+            }
+
+            if ($v1 < $array2[$k1]) {
+                $retval[$k1] = $array1[$k1];
+            } else {
+                $retval[$k1] = $v1;
+            }
+
+        }
+        return $retval;
+    }
+
+    function find_all_ancestors($animal_id, $depth=0) {
+        $animal_rec = get_item($this->relmap, $animal_id);
+        if ($animal_rec === null) {
+            // we might be called on a dataset where phantom leaf nodes aren't added for parents that
+            // do not exist in the dataset
+            return array($animal_id => $depth);
+        }
+
+        if (isset($animal_rec['parent1'])) {
+            $parent1_ancestors = $this->find_all_ancestors($animal_rec['parent1'], $depth+1);
+        } else {
+            $parent1_ancestors = array();
+        }
+
+        if (isset($animal_rec['parent2'])) {
+            $parent2_ancestors = $this->find_all_ancestors($animal_rec['parent2'], $depth+1);
+        } else {
+            $parent2_ancestors = array();
+        }
+
+        // in the case where same parent is seen on both sides of the family tree we only keep the one that is closest
+        $shared_ancestors = $this->array_intersect_closest($parent1_ancestors, $parent2_ancestors);
+        foreach ($shared_ancestors as $k => $v) {
+            if ($parent1_ancestors[$k] <= $parent2_ancestors[$k]) {
+                unset($parent2_ancestors[$k]);
+            } else {
+                unset($parent1_ancestors[$k]);
+            }
+        }
+        if ($depth > 0) {
+            $self = array($animal_id => $depth);
+        } else {
+            $self = array();
+        }
+        $retval = $self + $parent1_ancestors + $parent2_ancestors;
+        return $retval;
+    }
+
     // interface
     function inbreeding_coefficient($animal_id) {
         return $this->numerator_table[$animal_id][$animal_id] - 1;
@@ -120,5 +177,18 @@ class Pedigree {
                 (sqrt(1+$this->inbreeding_coefficient($animal1_id)) * 
                  sqrt(1+$this->inbreeding_coefficient($animal2_id))
                 );
+    }
+
+    function most_recent_common_ancestor($animal1_id, $animal2_id) {
+        // this is bruteforce algorithm that finds ancestor set for both animals
+        // and returns the node with smallest depth (from the perspective of animals)
+        $animal1_ancestors = $this->find_all_ancestors($animal1_id);
+        $animal2_ancestors = $this->find_all_ancestors($animal2_id);
+        $shared_ancestors = $this->array_intersect_closest($animal1_ancestors, $animal2_ancestors);
+        asort($shared_ancestors, SORT_NUMERIC);
+        foreach ($shared_ancestors as $key => $val) {
+            return $key;
+        }
+        return null;
     }
 }
