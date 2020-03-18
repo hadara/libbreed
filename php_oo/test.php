@@ -56,6 +56,12 @@ $test_ab_ancestor = function () {
         return false;
     }
 
+    $val = $pedigree->most_recent_common_ancestor('A', 'B');
+    if ($val !== null) {
+        print("ab ancestor test A B failed. Expected null but got ".$val);
+        return false;
+    }
+
     return true;
 };
 

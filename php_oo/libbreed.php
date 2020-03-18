@@ -179,15 +179,31 @@ class Pedigree {
                 );
     }
 
-    function most_recent_common_ancestor($animal1_id, $animal2_id) {
-        // this is bruteforce algorithm that finds ancestor set for both animals
-        // and returns the node with smallest depth (from the perspective of animals)
+    function common_ancestors($animal1_id, $animal2_id) {
+        /* returns common ancestors for given animals as a list of common ancestors ordered
+         * from closest to farthest. Each common ancestor is represented by a dict in the form of:
+         *  {'id' => <animal_id>, 'distance': <integer indicating minimal edge count in the graph to closest common ancestor>}
+         * Empty list is returned if no common ancestors are found
+         */
         $animal1_ancestors = $this->find_all_ancestors($animal1_id);
         $animal2_ancestors = $this->find_all_ancestors($animal2_id);
         $shared_ancestors = $this->array_intersect_closest($animal1_ancestors, $animal2_ancestors);
         asort($shared_ancestors, SORT_NUMERIC);
+        $retval = array();
         foreach ($shared_ancestors as $key => $val) {
-            return $key;
+            array_push($retval, array('id' => $key, 'distance' => $val));
+        }
+        return $retval;
+    }
+
+    function most_recent_common_ancestor($animal1_id, $animal2_id) {
+        /* returns ID of the most recent common ancestor for given animals
+         * null if unknown.
+         * When multiple ancestors have the same distance then it's undefined which one of these is returned
+         */
+        $shared_ancestors = $this->common_ancestors($animal1_id, $animal2_id);
+        if (count($shared_ancestors) > 0) {
+            return $shared_ancestors[0]['id'];
         }
         return null;
     }
